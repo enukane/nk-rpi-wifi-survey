@@ -1,0 +1,21 @@
+[Unit]
+Description=NK Wi-Fi Survey Application
+After=network.target
+
+[Service]
+Type=simple
+User=enukane
+Group=enukane
+WorkingDirectory=/home/enukane/Dev/nk-wifi-survey
+ExecStart=/usr/bin/ruby /home/enukane/Dev/nk-wifi-survey/srv.rb
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=on-failure
+RestartSec=5
+
+Environment=SUDO_ASKPASS=/bin/true
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

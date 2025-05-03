@@ -1,0 +1,9 @@
+# Wi-Fi Field Survey Configuration
+
+[scanner]
+# Commands for Wi-Fi scanning operations
+channel_scan_cmd = "sudo iw wlan1 scan"
+channel_busy_cmd = "sudo iw wlan1 survey dump"
+spectrum_2ghz_cmd = "sudo /home/enukane/Dev/nk-wifi-survey/wipry-lp -2"
+spectrum_5ghz_cmd = "sudo /home/enukane/Dev/nk-wifi-survey/wipry-lp -5"
+spectrum_6ghz_cmd = "sudo /home/enukane/Dev/nk-wifi-survey/wipry-lp -6"
