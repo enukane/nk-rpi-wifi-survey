@@ -174,14 +174,207 @@ get '/api/sessions/:session_id/points/:point_id/status' do
   end
 end
 
+FREQ_TO_CHANNEL = {
+  # 2.4 GHz
+  '2412' => '1', '2417' => '2', '2422' => '3', '2427' => '4', '2432' => '5', 
+  '2437' => '6', '2442' => '7', '2447' => '8', '2452' => '9', '2457' => '10', 
+  '2462' => '11', '2467' => '12', '2472' => '13',
+  # 5 GHz (partial mapping)
+  '5180' => '36', '5200' => '40', '5220' => '44', '5240' => '48',
+  '5260' => '52', '5280' => '56', '5300' => '60', '5320' => '64',
+  '5500' => '100', '5520' => '104', '5540' => '108', '5560' => '112',
+  '5580' => '116', '5600' => '120', '5620' => '124', '5640' => '128',
+  '5660' => '132', '5680' => '136', '5700' => '140', '5720' => '144',
+  '5745' => '149', '5765' => '153', '5785' => '157', '5805' => '161',
+  '5825' => '165', '5845' => '169', '5865' => '173', '5885' => '177',
+  # 6GHz
+  '5955' => '1',
+  '5975' => '5',
+  '5995' => '9',
+  '6015' => '13',
+  '6035' => '17',
+  '6055' => '21',
+  '6075' => '25',
+  '6095' => '29',
+  '6115' => '33',
+  '6135' => '37',
+  '6155' => '41',
+  '6175' => '45',
+  '6195' => '49',
+  '6215' => '53',
+  '6235' => '57',
+  '6255' => '61',
+  '6275' => '65',
+  '6295' => '69',
+  '6315' => '73',
+  '6335' => '77',
+  '6355' => '81',
+  '6375' => '85',
+  '6395' => '89',
+  '6415' => '93',
+  '6435' => '97',
+  '6455' => '101',
+  '6475' => '105',
+  '6495' => '109',
+  '6515' => '113',
+  '6535' => '117',
+  '6555' => '121',
+  '6575' => '125',
+  '6595' => '129',
+  '6615' => '133',
+  '6635' => '137',
+  '6655' => '141',
+  '6675' => '145',
+  '6695' => '149',
+  '6715' => '153',
+  '6735' => '157',
+  '6755' => '161',
+  '6775' => '165',
+  '6795' => '169',
+  '6815' => '173',
+  '6835' => '177',
+  '6855' => '181',
+  '6875' => '185',
+  '6895' => '189',
+  '6915' => '193',
+  '6935' => '197',
+  '6955' => '201',
+  '6975' => '205',
+  '6995' => '209',
+  '7015' => '213',
+  '7035' => '217',
+  '7055' => '221',
+  '7075' => '225',
+  '7095' => '229',
+  '7115' => '233'
+}
+
+# Channel frequency ranges
+CHANNEL_RANGES = {
+  # 2.4 GHz channels (center frequencies and ranges)
+  '2.4_1' => [2412, 2401.17, 2422.66],
+  '2.4_2' => [2417, 2406.17, 2427.66],
+  '2.4_3' => [2422, 2411.17, 2432.66],
+  '2.4_4' => [2427, 2416.17, 2437.66],
+  '2.4_5' => [2432, 2421.17, 2442.66],
+  '2.4_6' => [2437, 2426.17, 2447.66],
+  '2.4_7' => [2442, 2431.17, 2452.66],
+  '2.4_8' => [2447, 2436.17, 2457.66],
+  '2.4_9' => [2452, 2441.17, 2462.66],
+  '2.4_10' => [2457, 2446.17, 2467.66],
+  '2.4_11' => [2462, 2451.17, 2472.66],
+  '2.4_12' => [2467, 2456.17, 2477.66],
+  '2.4_13' => [2472, 2461.17, 2482.66],
+  
+  # 5 GHz channels (all channels with center and ranges)
+  # UNII-1 (36-48)
+  '5_36' => [5180, 5170, 5190],
+  '5_40' => [5200, 5190, 5210],
+  '5_44' => [5220, 5210, 5230],
+  '5_48' => [5240, 5230, 5250],
+  
+  # UNII-2 (52-64)
+  '5_52' => [5260, 5250, 5270],
+  '5_56' => [5280, 5270, 5290],
+  '5_60' => [5300, 5290, 5310],
+  '5_64' => [5320, 5310, 5330],
+  
+  # UNII-2 Extended (100-144)
+  '5_100' => [5500, 5490, 5510],
+  '5_104' => [5520, 5510, 5530],
+  '5_108' => [5540, 5530, 5550],
+  '5_112' => [5560, 5550, 5570],
+  '5_116' => [5580, 5570, 5590],
+  '5_120' => [5600, 5590, 5610],
+  '5_124' => [5620, 5610, 5630],
+  '5_128' => [5640, 5630, 5650],
+  '5_132' => [5660, 5650, 5670],
+  '5_136' => [5680, 5670, 5690],
+  '5_140' => [5700, 5690, 5710],
+  '5_144' => [5720, 5710, 5730],
+  
+  # UNII-3 (149-177)
+  '5_149' => [5745, 5735, 5755],
+  '5_153' => [5765, 5755, 5775],
+  '5_157' => [5785, 5775, 5795],
+  '5_161' => [5805, 5795, 5815],
+  '5_165' => [5825, 5815, 5835],
+  '5_169' => [5845, 5835, 5855],
+  '5_173' => [5865, 5855, 5875],
+  '5_177' => [5885, 5875, 5895],
+  
+  # 6 GHz channels (U-NII-5 through U-NII-8)
+  # 20MHz channels (1-233)
+  '6_1' => [5945, 5935, 5955],
+  '6_5' => [5965, 5955, 5975],
+  '6_9' => [5985, 5975, 5995],
+  '6_13' => [6005, 5995, 6015],
+  '6_17' => [6025, 6015, 6035],
+  '6_21' => [6045, 6035, 6055],
+  '6_25' => [6065, 6055, 6075],
+  '6_29' => [6085, 6075, 6095],
+  '6_33' => [6105, 6095, 6115],
+  '6_37' => [6125, 6115, 6135],
+  '6_41' => [6145, 6135, 6155],
+  '6_45' => [6165, 6155, 6175],
+  '6_49' => [6185, 6175, 6195],
+  '6_53' => [6205, 6195, 6215],
+  '6_57' => [6225, 6215, 6235],
+  '6_61' => [6245, 6235, 6255],
+  '6_65' => [6265, 6255, 6275],
+  '6_69' => [6285, 6275, 6295],
+  '6_73' => [6305, 6295, 6315],
+  '6_77' => [6325, 6315, 6335],
+  '6_81' => [6345, 6335, 6355],
+  '6_85' => [6365, 6355, 6375],
+  '6_89' => [6385, 6375, 6395],
+  '6_93' => [6405, 6395, 6415],
+  '6_97' => [6425, 6415, 6435],
+  '6_101' => [6445, 6435, 6455],
+  '6_105' => [6465, 6455, 6475],
+  '6_109' => [6485, 6475, 6495],
+  '6_113' => [6505, 6495, 6515],
+  '6_117' => [6525, 6515, 6535],
+  '6_121' => [6545, 6535, 6555],
+  '6_125' => [6565, 6555, 6575],
+  '6_129' => [6585, 6575, 6595],
+  '6_133' => [6605, 6595, 6615],
+  '6_137' => [6625, 6615, 6635],
+  '6_141' => [6645, 6635, 6655],
+  '6_145' => [6665, 6655, 6675],
+  '6_149' => [6685, 6675, 6695],
+  '6_153' => [6705, 6695, 6715],
+  '6_157' => [6725, 6715, 6735],
+  '6_161' => [6745, 6735, 6755],
+  '6_165' => [6765, 6755, 6775],
+  '6_169' => [6785, 6775, 6795],
+  '6_173' => [6805, 6795, 6815],
+  '6_177' => [6825, 6815, 6835],
+  '6_181' => [6845, 6835, 6855],
+  '6_185' => [6865, 6855, 6875],
+  '6_189' => [6885, 6875, 6895],
+  '6_193' => [6905, 6895, 6915],
+  '6_197' => [6925, 6915, 6935],
+  '6_201' => [6945, 6935, 6955],
+  '6_205' => [6965, 6955, 6975],
+  '6_209' => [6985, 6975, 6995],
+  '6_213' => [7005, 6995, 7015],
+  '6_217' => [7025, 7015, 7035],
+  '6_221' => [7045, 7035, 7055],
+  '6_225' => [7065, 7055, 7075],
+  '6_229' => [7085, 7075, 7095],
+  '6_233' => [7105, 7095, 7115]
+}
+
 # Function to parse scan results and calculate metrics
 def process_scan_results(point_dir)
+  p "provcess_ca"
   results = { channels: {} }
 
   # Initialize channels data
   channels_2ghz = [1, 6, 11]
   channels_5ghz = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165, 169, 173, 177]
-  channels_6ghz = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 159, 173, 177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233]
+  channels_6ghz = [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233]
 
   all_channels = channels_2ghz.map{ |c| "2.4_#{c}" } + channels_5ghz.map{ |c| "5_#{c}" } + channels_6ghz.map{ |c| "6_#{c}" }
   all_channels.each do |band_channel_key|
@@ -194,6 +387,8 @@ def process_scan_results(point_dir)
     }
   end
 
+  bss_hash = {}
+
   # Process iw scan results
   channel_scan_files = Dir.glob(File.join(point_dir, 'channel_scan_*.txt'))
   channel_scan_files.each do |file|
@@ -201,56 +396,68 @@ def process_scan_results(point_dir)
     current_channel = nil
     signal_strength = nil
     last_seen_seconds = nil
+    current_freq = nil
 
     File.readlines(file).each do |line|
-      if line.include?('BSS')
-        # New BSS entry
-        if current_bss && current_channel && signal_strength && last_seen_seconds && last_seen_seconds < 30
-          channel = current_channel.to_s
-          if results[:channels].key?(channel)
-            results[:channels][channel][:ap_count] += 1
-            if signal_strength >= -85
-              results[:channels][channel][:strong_ap_count] += 1
-            end
-          end
+      if line.match(/^BSS (.+)\(on (.+)\)/)
+        current_bss= $1
+        if bss_hash[current_bss] == nil
+          bss_hash[current_bss] = {
+            :channel_freq => nil,
+            :channel_num => nil,
+            :signal_strength => nil,
+            :last_seen_seconds => nil
+          }
         end
-
-        current_bss = line.strip
-        current_channel = nil
-        signal_strength = nil
-        last_seen_seconds = nil
-      elsif line.include?('signal:')
-        signal_strength = line.split(':').last.strip.to_f
-      elsif line.include?('DS Parameter set: channel')
-        current_channel = line.split('channel').last.strip.to_i
-      elsif line.include?('last seen:')
-        if line.include?('ms ago')
-          last_seen_seconds = line.split('last seen:').last.strip.split(' ms').first.strip.to_f / 1000
-        elsif line.include?('s ago')
-          last_seen_seconds = line.split('last seen:').last.strip.split(' s').first.strip.to_f
+      elsif line.match(/\s+freq: (\d+)/)
+        next unless current_bss
+        next unless bss_hash[current_bss]
+        current_freq = $1.to_i
+        bss_hash[current_bss][:channel_freq] = current_freq
+      elsif line.match(/\s+signal: (.+) dBm/)
+        next unless current_bss
+        next unless bss_hash[current_bss]
+        signal_strength = $1.to_f
+        bss_hash[current_bss][:signal_strength] = signal_strength
+      elsif line.match(/\s+DS Parameter set: channel (\d+)/)
+        next unless current_bss
+        next unless bss_hash[current_bss]
+        current_channel = $1.to_i
+        bss_hash[current_bss][:channel_num] = current_channel
+      elsif line.match(/\s+last seen: (\d+) (m?s) ago/)
+        next unless current_bss
+        next unless bss_hash[current_bss]
+        val = $1.to_i
+        is_ms = $2 == "ms"
+        last_seen_seconds = val
+        if is_ms
+          last_seen_seconds /= 1000
         end
+        bss_hash[current_bss][:last_seen_seconds] = last_seen_seconds
       end
     end
 
-    # Process the last BSS entry in the file
-    if current_bss && current_channel && signal_strength && last_seen_seconds && last_seen_seconds < 30
-      channel_num = current_channel.to_s
+    bss_hash.each do |bssid, hash|
+      next unless hash[:channel_num]
+      channel_num = hash[:channel_num]
+      channel_freq = hash[:channel_freq]
 
-      # チャネル番号から帯域を推測
-      band = current_channel < 14 ? '2.4' : (current_channel < 200 ? '5' : '6')
-
-      # 帯域情報を含むキーを作成
+      band = if channel_freq < 3000
+               '2.4'
+             elsif channel_freq > 5920
+               '6'
+             else
+               '5'
+             end
       band_channel_key = "#{band}_#{channel_num}"
 
       if results[:channels].key?(band_channel_key)
         results[:channels][band_channel_key][:ap_count] += 1
-        if signal_strength >= -85
+        if hash[:signal_strength] >= -80
           results[:channels][band_channel_key][:strong_ap_count] += 1
         end
       end
     end
-
-
   end
 
   # Process channel busy rate from survey dump
@@ -263,122 +470,56 @@ def process_scan_results(point_dir)
     busy_time = nil
 
     File.readlines(file).each do |line|
-      if line.include?('frequency:')
-        if current_freq && active_time && busy_time && active_time > 0
-          channel_busy_rates[current_freq] ||= []
-          channel_busy_rates[current_freq] << (busy_time.to_f / active_time.to_f) * 100
+      if line.match(/^\s+frequency:\s+(\d+) MHz/)
+        current_freq = $1.to_i
+        if channel_busy_rates[current_freq].nil?
+          channel_busy_rates[current_freq] = {
+            :active_times_ms => 0,
+            :busy_times_ms => 0,
+          }
         end
-
-        current_freq = line.split(':').last.strip.split(' ').first
-        active_time = nil
-        busy_time = nil
-      elsif line.include?('channel active time:')
-        active_time = line.split(':').last.strip.split(' ').first.to_i
-      elsif line.include?('channel busy time:')
-        busy_time = line.split(':').last.strip.split(' ').first.to_i
+      elsif line.match(/^\s+channel active time:\s+(\d+) (m?s)/)
+        next unless current_freq
+        next unless channel_busy_rates[current_freq]
+        active_times_ms = $1.to_f
+        is_s = $1 == "s"
+        active_times_ms *= 1000 if is_s
+        channel_busy_rates[current_freq][:active_times_ms] += active_times_ms
+      elsif line.match(/^\s+channel busy time:\s+(\d+) (m?s)/)
+        next unless current_freq
+        next unless channel_busy_rates[current_freq]
+        busy_times_ms = $1.to_f
+        is_s = $1 == "s"
+        busy_times_ms *= 1000 if is_s
+        channel_busy_rates[current_freq][:busy_times_ms] += busy_times_ms
       end
     end
-
-    # Process the last frequency entry in the file
-    if current_freq && active_time && busy_time && active_time > 0
-      channel_busy_rates[current_freq] ||= []
-      channel_busy_rates[current_freq] << (busy_time.to_f / active_time.to_f) * 100
-    end
-
   end
 
   # Convert frequencies to channels and calculate average busy rate
-  freq_to_channel = {
-    # 2.4 GHz
-    '2412' => '1', '2417' => '2', '2422' => '3', '2427' => '4', '2432' => '5', 
-    '2437' => '6', '2442' => '7', '2447' => '8', '2452' => '9', '2457' => '10', 
-    '2462' => '11', '2467' => '12', '2472' => '13',
-    # 5 GHz (partial mapping)
-    '5180' => '36', '5200' => '40', '5220' => '44', '5240' => '48',
-    '5260' => '52', '5280' => '56', '5300' => '60', '5320' => '64',
-    '5500' => '100', '5520' => '104', '5540' => '108', '5560' => '112',
-    '5580' => '116', '5600' => '120', '5620' => '124', '5640' => '128',
-    '5660' => '132', '5680' => '136', '5700' => '140', '5720' => '144',
-    '5745' => '149', '5765' => '153', '5785' => '157', '5805' => '161',
-    '5825' => '165', '5845' => '169', '5865' => '173', '5885' => '177',
-    # 6GHz
-    #   '5955' => '1',
-    '5975' => '5',
-    '5995' => '9',
-    '6015' => '13',
-    '6035' => '17',
-    '6055' => '21',
-    '6075' => '25',
-    '6095' => '29',
-    '6115' => '33',
-    '6135' => '37',
-    '6155' => '41',
-    '6175' => '45',
-    '6195' => '49',
-    '6215' => '53',
-    '6235' => '57',
-    '6255' => '61',
-    '6275' => '65',
-    '6295' => '69',
-    '6315' => '73',
-    '6335' => '77',
-    '6355' => '81',
-    '6375' => '85',
-    '6395' => '89',
-    '6415' => '93',
-    '6435' => '97',
-    '6455' => '101',
-    '6475' => '105',
-    '6495' => '109',
-    '6515' => '113',
-    '6535' => '117',
-    '6555' => '121',
-    '6575' => '125',
-    '6595' => '129',
-    '6615' => '133',
-    '6635' => '137',
-    '6655' => '141',
-    '6675' => '145',
-    '6695' => '149',
-    '6715' => '153',
-    '6735' => '157',
-    '6755' => '161',
-    '6775' => '165',
-    '6795' => '169',
-    '6815' => '173',
-    '6835' => '177',
-    '6855' => '181',
-    '6875' => '185',
-    '6895' => '189',
-    '6915' => '193',
-    '6935' => '197',
-    '6955' => '201',
-    '6975' => '205',
-    '6995' => '209',
-    '7015' => '213',
-    '7035' => '217',
-    '7055' => '221',
-    '7075' => '225',
-    '7095' => '229',
-    '7115' => '233'
-  }
-  channel_busy_rates.each do |freq, rates|
-    if rates.any? && freq_to_channel.key?(freq)
-      channel = freq_to_channel[freq]
-      
-      # 周波数からバンドを判定
-      freq_num = freq.to_i
-      band = freq_num < 3000 ? '2.4' : (freq_num < 6000 ? '5' : '6')
-      
-      # 帯域情報を含むキーを作成
-      band_channel_key = "#{band}_#{channel}"
-      
-      if results[:channels].key?(band_channel_key)
-        results[:channels][band_channel_key][:channel_busy_rate] = rates.sum / rates.size
-      end
+  channel_busy_rates.each do |freq, hash|
+    active_times_ms = hash[:active_times_ms]
+    busy_times_ms = hash[:busy_times_ms]
+    next if active_times_ms == 0.0
+    busy_rates = (busy_times_ms / active_times_ms) * 100.0
+
+    channel_num = FREQ_TO_CHANNEL[freq.to_s]
+
+    band = if freq < 3000
+             '2.4'
+           elsif freq > 5920
+             '6'
+           else
+             '5'
+           end
+    next if band == '2.4' and ![1,6,11].include?(channel_num.to_i)
+    band_channel_key = "#{band}_#{channel_num}"
+
+    if results[:channels][band_channel_key][:channel_busy_rate]
+      results[:channels][band_channel_key][:channel_busy_rate] = busy_rates.round(2)
     end
   end
- 
+
   # Process spectrum analyzer data
   spectrum_files = {
     '2.4' => Dir.glob(File.join(point_dir, 'spectrum_2ghz_*.txt')),
@@ -386,122 +527,6 @@ def process_scan_results(point_dir)
     '6' => Dir.glob(File.join(point_dir, 'spectrum_6ghz_*.txt'))
   }
 
-  # Channel frequency ranges
-  channel_ranges = {
-    # 2.4 GHz channels (center frequencies and ranges)
-    '2.4_1' => [2412, 2401.17, 2422.66],
-    '2.4_2' => [2417, 2406.17, 2427.66],
-    '2.4_3' => [2422, 2411.17, 2432.66],
-    '2.4_4' => [2427, 2416.17, 2437.66],
-    '2.4_5' => [2432, 2421.17, 2442.66],
-    '2.4_6' => [2437, 2426.17, 2447.66],
-    '2.4_7' => [2442, 2431.17, 2452.66],
-    '2.4_8' => [2447, 2436.17, 2457.66],
-    '2.4_9' => [2452, 2441.17, 2462.66],
-    '2.4_10' => [2457, 2446.17, 2467.66],
-    '2.4_11' => [2462, 2451.17, 2472.66],
-    '2.4_12' => [2467, 2456.17, 2477.66],
-    '2.4_13' => [2472, 2461.17, 2482.66],
-    
-    # 5 GHz channels (all channels with center and ranges)
-    # UNII-1 (36-48)
-    '5_36' => [5180, 5170, 5190],
-    '5_40' => [5200, 5190, 5210],
-    '5_44' => [5220, 5210, 5230],
-    '5_48' => [5240, 5230, 5250],
-    
-    # UNII-2 (52-64)
-    '5_52' => [5260, 5250, 5270],
-    '5_56' => [5280, 5270, 5290],
-    '5_60' => [5300, 5290, 5310],
-    '5_64' => [5320, 5310, 5330],
-    
-    # UNII-2 Extended (100-144)
-    '5_100' => [5500, 5490, 5510],
-    '5_104' => [5520, 5510, 5530],
-    '5_108' => [5540, 5530, 5550],
-    '5_112' => [5560, 5550, 5570],
-    '5_116' => [5580, 5570, 5590],
-    '5_120' => [5600, 5590, 5610],
-    '5_124' => [5620, 5610, 5630],
-    '5_128' => [5640, 5630, 5650],
-    '5_132' => [5660, 5650, 5670],
-    '5_136' => [5680, 5670, 5690],
-    '5_140' => [5700, 5690, 5710],
-    '5_144' => [5720, 5710, 5730],
-    
-    # UNII-3 (149-177)
-    '5_149' => [5745, 5735, 5755],
-    '5_153' => [5765, 5755, 5775],
-    '5_157' => [5785, 5775, 5795],
-    '5_161' => [5805, 5795, 5815],
-    '5_165' => [5825, 5815, 5835],
-    '5_169' => [5845, 5835, 5855],
-    '5_173' => [5865, 5855, 5875],
-    '5_177' => [5885, 5875, 5895],
-    
-    # 6 GHz channels (U-NII-5 through U-NII-8)
-    # 20MHz channels (1-233)
-    '6_1' => [5945, 5935, 5955],
-    '6_5' => [5965, 5955, 5975],
-    '6_9' => [5985, 5975, 5995],
-    '6_13' => [6005, 5995, 6015],
-    '6_17' => [6025, 6015, 6035],
-    '6_21' => [6045, 6035, 6055],
-    '6_25' => [6065, 6055, 6075],
-    '6_29' => [6085, 6075, 6095],
-    '6_33' => [6105, 6095, 6115],
-    '6_37' => [6125, 6115, 6135],
-    '6_41' => [6145, 6135, 6155],
-    '6_45' => [6165, 6155, 6175],
-    '6_49' => [6185, 6175, 6195],
-    '6_53' => [6205, 6195, 6215],
-    '6_57' => [6225, 6215, 6235],
-    '6_61' => [6245, 6235, 6255],
-    '6_65' => [6265, 6255, 6275],
-    '6_69' => [6285, 6275, 6295],
-    '6_73' => [6305, 6295, 6315],
-    '6_77' => [6325, 6315, 6335],
-    '6_81' => [6345, 6335, 6355],
-    '6_85' => [6365, 6355, 6375],
-    '6_89' => [6385, 6375, 6395],
-    '6_93' => [6405, 6395, 6415],
-    '6_97' => [6425, 6415, 6435],
-    '6_101' => [6445, 6435, 6455],
-    '6_105' => [6465, 6455, 6475],
-    '6_109' => [6485, 6475, 6495],
-    '6_113' => [6505, 6495, 6515],
-    '6_117' => [6525, 6515, 6535],
-    '6_121' => [6545, 6535, 6555],
-    '6_125' => [6565, 6555, 6575],
-    '6_129' => [6585, 6575, 6595],
-    '6_133' => [6605, 6595, 6615],
-    '6_137' => [6625, 6615, 6635],
-    '6_141' => [6645, 6635, 6655],
-    '6_145' => [6665, 6655, 6675],
-    '6_149' => [6685, 6675, 6695],
-    '6_153' => [6705, 6695, 6715],
-    '6_157' => [6725, 6715, 6735],
-    '6_161' => [6745, 6735, 6755],
-    '6_165' => [6765, 6755, 6775],
-    '6_169' => [6785, 6775, 6795],
-    '6_173' => [6805, 6795, 6815],
-    '6_177' => [6825, 6815, 6835],
-    '6_181' => [6845, 6835, 6855],
-    '6_185' => [6865, 6855, 6875],
-    '6_189' => [6885, 6875, 6895],
-    '6_193' => [6905, 6895, 6915],
-    '6_197' => [6925, 6915, 6935],
-    '6_201' => [6945, 6935, 6955],
-    '6_205' => [6965, 6955, 6975],
-    '6_209' => [6985, 6975, 6995],
-    '6_213' => [7005, 6995, 7015],
-    '6_217' => [7025, 7015, 7035],
-    '6_221' => [7045, 7035, 7055],
-    '6_225' => [7065, 7055, 7075],
-    '6_229' => [7085, 7075, 7095],
-    '6_233' => [7105, 7095, 7115]
-  }
   # Process spectrum data for each band
   spectrum_data = {}
 
@@ -513,7 +538,7 @@ def process_scan_results(point_dir)
 
       lines.each do |line|
         # Extract the frequency-power pairs
-        data_part = line.split(' ').last.split(',')
+        data_part = line.split(' ')[1].split(',')
         data_part.each do |item|
           if item.include?('=')
             freq_str, power_str = item.split('=')
@@ -528,17 +553,15 @@ def process_scan_results(point_dir)
     end
   end
 
-  # スペクトラムデータの処理
-  channel_ranges.each do |channel_key, range|
+  CHANNEL_RANGES.each do |channel_key, range|
     center_freq, start_freq, end_freq = range
-    
-    # チャネルキーから帯域を取得（2.4_1、5_36、6_1などから2.4、5、6を抽出）
+
     band = channel_key.split('_').first
-    
+
     if spectrum_data.key?(band)
       total_points = 0
       active_points = 0
-      
+
       spectrum_data[band].each do |freq, powers|
         if freq >= start_freq && freq <= end_freq
           powers.each do |power|
@@ -549,19 +572,16 @@ def process_scan_results(point_dir)
           end
         end
       end
-      
+
       if total_points > 0
         usage_rate = (active_points.to_f / total_points.to_f) * 100
-        
-        # 結果を保存する際も帯域情報を含むキーを使用
         if results[:channels].key?(channel_key)
-          results[:channels][channel_key][:channel_usage_rate] = usage_rate
+          results[:channels][channel_key][:channel_usage_rate] = usage_rate.round(2)
         end
       end
     end
   end
-  
- 
+
   # AP情報を処理する部分も同様に修正（チャネルから帯域を判断）
   
   # スコア計算部分も同様に修正（帯域を含むキーを使用）
@@ -759,6 +779,7 @@ get '/api/sessions/:session_id/points/:point_id/results' do
   point_id = params[:point_id]
 
   point_dir = File.join(BASE_DIR, session_id, 'points', point_id)
+  process_scan_results(point_dir)
   results_file = File.join(point_dir, 'results.json')
 
   if File.exist?(results_file)
